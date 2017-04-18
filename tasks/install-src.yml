@@ -1,0 +1,39 @@
+# install and initialise sources from github for frab
+# reference https://github.com/frab/frab/blob/master/INSTALL.md
+
+# list of tasks.
+# implied "tasks: "
+
+- name: clone frab source from git repository
+  git:
+    repo: "{{ frab_git_repo }}"
+    dest: "{{ frab_install_dir }}"
+    version: "{{ frab_git_release }}"
+    update: no
+
+- name: install bundler gem (additonal dependency)
+  gem:
+    name: bundler
+    state: present
+    user_install: no
+  environment:
+    PATH: /opt/rh/rh-ruby23/root/usr/local/bin:/opt/rh/rh-ruby23/root/usr/bin:{{ ansible_env.PATH }}
+    LD_LIBRARY_PATH: /opt/rh/rh-ruby23/root/usr/local/lib64:/opt/rh/rh-ruby23/root/usr/lib64
+  when: ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux"
+
+- name: do initial frab setup (bundler)
+  bundler: 
+    state: present 
+    chdir: "{{ frab_install_dir }}"
+    exclude_groups: [ "postgresql", "sqlite3" ]
+  environment:
+    PATH: /opt/rh/rh-ruby23/root/usr/local/bin:/opt/rh/rh-ruby23/root/usr/bin:{{ ansible_env.PATH }}
+    LD_LIBRARY_PATH: /opt/rh/rh-ruby23/root/usr/local/lib64:/opt/rh/rh-ruby23/root/usr/lib64
+  when: ansible_distribution == "CentOS" or ansible_distribution == "Red Hat Enterprise Linux"
+
+- name: add a .env configuration file
+  template:
+    src: "{{ role_path }}/templates/env-production.j2"
+    dest: "{{ frab_install_dir }}/.env.production"
+    owner: root
+    mode: "0640"

@@ -1,0 +1,16 @@
+---
+# defaults file for afrinic.frab
+
+# variables with optional default values
+
+frab_vhost_name: []
+frab_environment: development   # development, test, production
+frab_install_dir: /srv/frab
+frab_git_repo: "https://github.com/frab/frab.git"
+frab_git_release: master
+frab_db_host: "127.0.0.1"
+frab_db_port: "3306"
+frab_db_name: db_frab
+frab_db_user: user_frab
+
+# sensitive values (passwords) in secrets.yml vault file

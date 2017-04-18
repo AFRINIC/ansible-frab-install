@@ -1,0 +1,36 @@
+---
+# tasks file for afrinic.frab
+
+# TO DO: Make all this install and run as
+# non-root uid on the remote host
+
+# list of tasks:
+
+- include: dependencies.yml
+- include: install-src.yml
+- include: database-init.yml
+
+- name: run rake precompile
+  command: rake assets:precompile RAILS_ENV="{{ frab_environment }}"
+  args:
+    chdir: "{{ frab_install_dir }}"
+    creates: "{{ frab_install_dir }}/public/assets"
+  environment:
+    PATH: /opt/rh/rh-ruby23/root/usr/local/bin:/opt/rh/rh-ruby23/root/usr/bin:{{ ansible_env.PATH }}
+    LD_LIBRARY_PATH: /opt/rh/rh-ruby23/root/usr/local/lib64:/opt/rh/rh-ruby23/root/usr/lib64
+
+- name: initialise rake secret if necessary
+  shell: "rake secret RAILS_ENV={{ frab_environment }} |sed -e 's/.*/SECRET_KEY_BASE=&/' >/var/local/frab.secret"
+  args:
+    chdir: "{{ frab_install_dir }}"
+    creates: /var/local/frab.secret
+  environment:
+    PATH: /opt/rh/rh-ruby23/root/usr/local/bin:/opt/rh/rh-ruby23/root/usr/bin:{{ ansible_env.PATH }}
+    LD_LIBRARY_PATH: /opt/rh/rh-ruby23/root/usr/local/lib64:/opt/rh/rh-ruby23/root/usr/lib64
+
+- name: create systemd service file (start-up script)
+  template:
+    src: "{{ role_path }}/templates/frab-rails-service.j2"
+    dest: /etc/systemd/system/frab-rails.service
+    owner: root
+    mode: "0644"

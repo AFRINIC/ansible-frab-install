@@ -1,0 +1,63 @@
+---
+# set up the database for frab
+# reference https://github.com/frab/frab/blob/master/INSTALL.md
+
+# list of tasks.
+# implied "tasks: "
+
+- name: load vault secrets
+  include_vars: secrets.yml
+  no_log: true
+
+- name: add database configuration file
+  template:
+    src: "{{ role_path }}/templates/database-yml.j2"
+    dest: "{{ frab_install_dir }}/config/database.yml"
+    owner: root
+    mode: "0640"
+  no_log: true
+
+- name: create empty database if needed
+  mysql_db:
+    name: "{{ frab_db_name }}"
+    state: present
+    encoding: utf8
+    login_host: "{{ frab_db_host }}"
+    login_port: "{{ frab_db_port }}"
+    login_user: root
+    login_password: "{{ mysql_root_pass }}"
+  no_log: true
+
+- name: add database user id if needed
+  mysql_user:
+    name: "{{ frab_db_user }}"
+    password: "{{ frab_db_pass }}"
+    state: present
+    update_password: always
+    priv: "{{ frab_db_name }}.*:ALL"
+    login_host: "{{ frab_db_host }}"
+    login_port: "{{ frab_db_port }}"
+    login_user: root
+    login_password: "{{ mysql_root_pass }}"
+  no_log: true
+
+- name: check on database state
+  command: "mysql -p{{ frab_db_pass }} -u {{ frab_db_user }} -D {{ frab_db_name }} -e 'show tables;'"
+  register: frab_db_tables
+  no_log: true
+
+- name: initialise database if empty
+  shell: "rake db:setup RAILS_ENV={{ frab_environment }} |tail -1"
+  args:
+    chdir: "{{ frab_install_dir }}"
+  environment:
+    PATH: /opt/rh/rh-ruby23/root/usr/local/bin:/opt/rh/rh-ruby23/root/usr/bin:{{ ansible_env.PATH }}
+    LD_LIBRARY_PATH: /opt/rh/rh-ruby23/root/usr/local/lib64:/opt/rh/rh-ruby23/root/usr/lib64
+  register: frab_db_initout
+  when: frab_db_tables.stdout == ""
+
+- name: spit out the default login info
+  debug: 
+    var: frab_db_initout.stdout
+    verbosity: 0
+  when: frab_db_initout.stdout is defined
